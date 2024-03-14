@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import axios from "../api";
-import { REFRESH_LINK, SIGN_IN_LINK, SIGN_UP_LINK } from "@/constants/links";
+import {
+  LOGOUT_LINK,
+  REFRESH_LINK,
+  SIGN_IN_LINK,
+  SIGN_UP_LINK,
+} from "@/constants/links";
 import { IItem } from "@/types";
 
 interface AuthParams {
@@ -34,12 +39,11 @@ type AuthStore = {
 const authApiCall = async (
   endpoint: string,
   params: AuthParams,
-  set: (state: Partial<AuthStore>) => void,
+  set: (state: Partial<AuthStore>) => void
 ) => {
   const { email, password, onSuccess, onError } = params;
   try {
     const res = await axios.post(endpoint, { email, password });
-    console.log(res, "resff");
     onSuccess();
     set({
       isAuthenticated: true,
@@ -59,8 +63,17 @@ const useAuthStore = create(
       refresh_token: "",
       signUp: (params) => authApiCall(SIGN_UP_LINK, params, set),
       signIn: (params) => authApiCall(SIGN_IN_LINK, params, set),
-      logout: () => {
-        set({ isAuthenticated: false, access_token: "", refresh_token: "" });
+      logout: async () => {
+        try {
+          await axios.post(LOGOUT_LINK, null, {
+            headers: {
+              Authorization: `Bearer ${get().access_token}`,
+            },
+          });
+          set({ isAuthenticated: false, access_token: "", refresh_token: "" });
+        } catch (error) {
+          console.error("logout error:", error);
+        }
       },
       handleAuthenticatedRequest: async ({
         url,
@@ -104,8 +117,8 @@ const useAuthStore = create(
     {
       name: "auth-storage",
       storage: createJSONStorage(() => localStorage),
-    },
-  ),
+    }
+  )
 );
 
 export default useAuthStore;
